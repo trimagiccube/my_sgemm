@@ -46,6 +46,19 @@ void print_matrix(const float* matrix, int rows, int cols, const char* name) {
 	std::cout << "..." << std::endl;
 }
 
+long  cal_total_flops(long m, long n, long k)
+{
+	/*c = alpha * (a * b) + beta * c*/
+	long total_flops;
+	long tmp1 = m * n * k;/*total a * b multiply, c matrix have  m * n element, every element k times multiply*/
+	long tmp2 = m * n * (k-1);/*total a * b add , c matrix have m * n element, every element k -1 times add*/
+	long tmp3 = m * n;/*total scalar multiply, every element in c matrix have 1 times alpha * (a * b)*/
+	long tmp4 = m * n;/*every element in c matrix : beta * c*/
+	long tmp5 = m * n;/*every element in c matrix : alpha * (a * b)     "+"     beta * c, here is "+"*/
+	total_flops = tmp1 + tmp2 + tmp3 + tmp4 + tmp5;
+	return total_flops;
+}
+
 int main(int argc, char **argv)
 {
 	long m,n,k;
@@ -54,7 +67,8 @@ int main(int argc, char **argv)
 	float *dA = nullptr, *dB = nullptr, *dC = nullptr,
 		  *dC_ref = nullptr;/*device matrices*/
 	float alpha = 0.5, beta = 3.0;
-	long test_size = 3;
+	long test_size = 8192;
+	cudaEvent_t start, stop;
 	m = n = k = test_size;
 	cublasHandle_t handle;
 
@@ -70,9 +84,11 @@ int main(int argc, char **argv)
 	randomize_matrix(B, k * n);
 	randomize_matrix(C, m * n);
 
+#if 0
 	print_matrix(A, m, k, "matrx A");
 	print_matrix(B, k, n, "matrx B");
 	print_matrix(A, m, n, "matrx C");
+#endif
 	cudaMemcpy(dA, A, sizeof(float) * m * k, cudaMemcpyHostToDevice);
 	cudaMemcpy(dB, B, sizeof(float) * k * n, cudaMemcpyHostToDevice);
 	cudaMemcpy(dC, C, sizeof(float) * m * n, cudaMemcpyHostToDevice);
@@ -80,16 +96,31 @@ int main(int argc, char **argv)
 		std::cout << "create cublas handle error" << std::endl;
 		exit(EXIT_FAILURE);
 	}
+	cudaEventCreate(&start);
+	cudaEventCreate(&stop);
+	cudaEventRecord(start);
 	runCublasFP32(handle, m, n, k, alpha, dA, dB, beta, dC);
+	cudaEventRecord(stop);
+	cudaEventSynchronize(stop);
+	float millseconds = 0;
+	cudaEventElapsedTime(&millseconds, start, stop);
+	std::cout << "cublasGemmEx completed in " << millseconds << " ms" << std::endl;
 
+	long total_flops;
+	total_flops = cal_total_flops(m, n, k);
+	double gflops = (total_flops / (millseconds / 1000.0) / 1e9);
+	std::cout << "total flops is " << total_flops << std::endl << "gflops is " << gflops <<  std::endl;
+
+	/*for check cublas cal right or not*/
 	float ref_value = 0.0f;
 	for (int k_index = 0; k_index < k; k_index++) {
 		ref_value += A[0 * k + k_index] * B[k_index * n + 0];
 	}
+
 	ref_value = alpha * ref_value + beta * C[0];
-	std::cout << "C[0,0] reference: " << ref_value << std::endl;
+	//std::cout << "C[0,0] reference: " << ref_value << std::endl;
 	cudaMemcpy(C, dC, sizeof(float) * m * n, cudaMemcpyDeviceToHost);
-	print_matrix(C, m, n, "result matrx C");
+	//print_matrix(C, m, n, "result matrx C");
 
 
 	free(A);
