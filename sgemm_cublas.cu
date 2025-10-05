@@ -1,0 +1,104 @@
+#include <cstdio>
+#include <cstdlib>
+#include <iostream>
+#include <cuda_runtime.h>
+#include <cublas_v2.h>
+#include <sys/time.h>
+
+void randomize_matrix(float *mat, int N)
+{
+	struct timeval time {};
+	gettimeofday(&time, nullptr);
+	srand(time.tv_usec);
+	for (int i = 0; i < N; i++) {
+		float tmp = (float)(rand() % 5) + 0.01 * (rand() % 5);
+		tmp = (rand() % 2 == 0) ? tmp : tmp * (-1.);
+		mat[i] = tmp;
+	}
+}
+
+void runCublasFP32(cublasHandle_t handle, int M, int N, int K, float alpha, float *A, float *B, float beta, float *C)
+{
+#if 0
+	cublasGemmEx(handle, CUBLAS_OP_N, CUBLAS_OP_N,
+		N/*c row*/, M/*c column*/, K, &alpha,
+		B/*matrix b*/, CUDA_R_32F/*B is fp32*/, N/*B leading dimension*/,
+		A, CUDA_R_32F/*A is fp32*/, K/*A leading dimension*/,
+		&beta, C, CUDA_R_32F, N/*C leading dimension*/,
+		CUBLAS_COMPUTE_32F, CUBLAS_GEMM_DEFAULT_TENSOR_OP);
+#endif
+	cublasGemmEx(handle, CUBLAS_OP_N, CUBLAS_OP_N,
+		N, M, K, &alpha,
+		B, CUDA_R_32F, N,
+		A, CUDA_R_32F, K,
+		&beta, C, CUDA_R_32F, N,
+		CUBLAS_COMPUTE_32F, CUBLAS_GEMM_DEFAULT_TENSOR_OP);
+}
+
+void print_matrix(const float* matrix, int rows, int cols, const char* name) {
+	std::cout << name << " (" << rows << "x" << cols << "):" << std::endl;
+	for (int i = 0; i < std::min(rows, 4); i++) {
+		for (int j = 0; j < std::min(cols, 4); j++) {
+			std::cout << matrix[i * cols + j] << " ";
+		}
+		std::cout << std::endl;
+	}
+	std::cout << "..." << std::endl;
+}
+
+int main(int argc, char **argv)
+{
+	long m,n,k;
+	float *A = nullptr, *B = nullptr, *C = nullptr,
+		  *C_ref = nullptr;/*host matrices*/
+	float *dA = nullptr, *dB = nullptr, *dC = nullptr,
+		  *dC_ref = nullptr;/*device matrices*/
+	float alpha = 0.5, beta = 3.0;
+	long test_size = 3;
+	m = n = k = test_size;
+	cublasHandle_t handle;
+
+	A = (float *)malloc(sizeof(float) * m * k);
+	B = (float *)malloc(sizeof(float) * k * n);
+	C = (float *)malloc(sizeof(float) * m * n);
+
+	cudaMalloc((void **)&dA, sizeof(float) * m * k);
+	cudaMalloc((void **)&dB, sizeof(float) * k * n);
+	cudaMalloc((void **)&dC, sizeof(float) * m * n);
+
+	randomize_matrix(A, m * k);
+	randomize_matrix(B, k * n);
+	randomize_matrix(C, m * n);
+
+	print_matrix(A, m, k, "matrx A");
+	print_matrix(B, k, n, "matrx B");
+	print_matrix(A, m, n, "matrx C");
+	cudaMemcpy(dA, A, sizeof(float) * m * k, cudaMemcpyHostToDevice);
+	cudaMemcpy(dB, B, sizeof(float) * k * n, cudaMemcpyHostToDevice);
+	cudaMemcpy(dC, C, sizeof(float) * m * n, cudaMemcpyHostToDevice);
+	if (cublasCreate(&handle)) {
+		std::cout << "create cublas handle error" << std::endl;
+		exit(EXIT_FAILURE);
+	}
+	runCublasFP32(handle, m, n, k, alpha, dA, dB, beta, dC);
+
+	float ref_value = 0.0f;
+	for (int k_index = 0; k_index < k; k_index++) {
+		ref_value += A[0 * k + k_index] * B[k_index * n + 0];
+	}
+	ref_value = alpha * ref_value + beta * C[0];
+	std::cout << "C[0,0] reference: " << ref_value << std::endl;
+	cudaMemcpy(C, dC, sizeof(float) * m * n, cudaMemcpyDeviceToHost);
+	print_matrix(C, m, n, "result matrx C");
+
+
+	free(A);
+	free(B);
+	free(C);
+	free(C_ref);
+	cudaFree(dA);
+	cudaFree(dB);
+	cudaFree(dC);
+	cudaFree(dC_ref);
+	cublasDestroy(handle);
+}
