@@ -66,8 +66,8 @@ int main(int argc, char **argv)
 		  *C_ref = nullptr;/*host matrices*/
 	float *dA = nullptr, *dB = nullptr, *dC = nullptr,
 		  *dC_ref = nullptr;/*device matrices*/
-	float alpha = 0.5, beta = 3.0;
-	long test_size = 8192;
+	float alpha = 1.0f, beta = 0.0f;
+	long test_size = 4096;
 	cudaEvent_t start, stop;
 	m = n = k = test_size;
 	cublasHandle_t handle;
@@ -96,13 +96,16 @@ int main(int argc, char **argv)
 		std::cout << "create cublas handle error" << std::endl;
 		exit(EXIT_FAILURE);
 	}
+	cublasSgemm(handle, CUBLAS_OP_N, CUBLAS_OP_N, n, m, k, &alpha, dB, n,dA, k, &beta, dC, n);
 	cudaEventCreate(&start);
 	cudaEventCreate(&stop);
 	cudaEventRecord(start);
-	runCublasFP32(handle, m, n, k, alpha, dA, dB, beta, dC);
+	//runCublasFP32(handle, m, n, k, alpha, dA, dB, beta, dC);
+	cublasSgemm(handle, CUBLAS_OP_N, CUBLAS_OP_N, n, m, k, &alpha, dB, n,dA, k, &beta, dC, n);
 	cudaEventRecord(stop);
 	cudaEventSynchronize(stop);
-	float millseconds = 0;
+//	cudaEventSynchronize(start);
+	float millseconds = 0.0f;
 	cudaEventElapsedTime(&millseconds, start, stop);
 	std::cout << "cublasGemmEx completed in " << millseconds << " ms" << std::endl;
 
