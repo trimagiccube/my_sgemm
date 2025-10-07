@@ -28,6 +28,13 @@ void run_native(int M, int N, int K, float alpha, float *A, float *B, float beta
 	native<<<gridDim, blockDim>>>(M, N, K, alpha, A, B, beta, C);
 }
 
+void run_native_global_coalesce(int M, int N, int K, float alpha, float *A, float *B, float beta, float *C)
+{
+	dim3 gridDim(CEIL_DIV(M, 32), CEIL_DIV(N, 32));
+	dim3 blockDim(32, 32);
+	native_global_coalesce<<<gridDim, blockDim>>>(M, N, K, alpha, A, B, beta, C);
+}
+
 void run_kernel(int kernel_num, cublasHandle_t handle, int M, int N, int K, float alpha, float *A, float *B, float beta, float *C)
 {
 	switch (kernel_num) {
@@ -36,6 +43,9 @@ void run_kernel(int kernel_num, cublasHandle_t handle, int M, int N, int K, floa
 			break;
 		case 1:
 			run_native(M, N, K, alpha, A, B, beta, C);
+			break;
+		case 2:
+			run_native_global_coalesce(M, N, K, alpha, A, B, beta, C);
 			break;
 
 		default:
