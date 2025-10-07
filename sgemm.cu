@@ -54,6 +54,13 @@ int main(int argc, char **argv)
 	cudaEvent_t start, stop;
 	m = n = k = test_size;
 	cublasHandle_t handle;
+	int kernel_num = 0;
+
+	if (argc != 2) {
+		std::cout << "please input  ./sgemm 0(0 - 10)" << std::endl;
+		exit(EXIT_FAILURE);
+	}
+	kernel_num = std::stoi(argv[1]);
 
 	A = (float *)malloc(sizeof(float) * m * k);
 	B = (float *)malloc(sizeof(float) * k * n);
@@ -79,11 +86,12 @@ int main(int argc, char **argv)
 		std::cout << "create cublas handle error" << std::endl;
 		exit(EXIT_FAILURE);
 	}
+	/*for warmup*/
 	cublasSgemm(handle, CUBLAS_OP_N, CUBLAS_OP_N, n, m, k, &alpha, dB, n,dA, k, &beta, dC, n);
 	cudaEventCreate(&start);
 	cudaEventCreate(&stop);
 	cudaEventRecord(start);
-	runCublasFP32(handle, m, n, k, alpha, dA, dB, beta, dC);
+	run_kernel(kernel_num, handle, m, n, k, alpha, dA, dB, beta, dC);
 	//cublasSgemm(handle, CUBLAS_OP_N, CUBLAS_OP_N, n, m, k, &alpha, dB, n,dA, k, &beta, dC, n);
 	cudaEventRecord(stop);
 	cudaEventSynchronize(stop);
