@@ -10,6 +10,6 @@ include_directories(${CUDA_INCLUDE_DIRS})
 
 message("CUDA_LIBRARIES :${CUDA_LIBRARIES}")
 message("CUDA_CUBLAS_LIBRARIES :${CUDA_CUBLAS_LIBRARIES}")
-add_executable(sgemm sgemm_cublas.cu)
+add_executable(sgemm sgemm.cu run_kernel_wrapper.cu)
 target_link_libraries(sgemm ${CUDA_LIBRARIES} ${CUDA_CUBLAS_LIBRARIES})
 set_target_properties(sgemm PROPERTIES CUDA_ARCHITECTURES ${CUDA_COMPUTE_CAPABILITY})

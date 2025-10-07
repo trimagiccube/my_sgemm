@@ -2,8 +2,9 @@
 #include <cstdlib>
 #include <iostream>
 #include <cuda_runtime.h>
-#include <cublas_v2.h>
 #include <sys/time.h>
+
+#include "run_kernel_wrapper.cuh"
 
 void randomize_matrix(float *mat, int N)
 {
@@ -15,24 +16,6 @@ void randomize_matrix(float *mat, int N)
 		tmp = (rand() % 2 == 0) ? tmp : tmp * (-1.);
 		mat[i] = tmp;
 	}
-}
-
-void runCublasFP32(cublasHandle_t handle, int M, int N, int K, float alpha, float *A, float *B, float beta, float *C)
-{
-#if 0
-	cublasGemmEx(handle, CUBLAS_OP_N, CUBLAS_OP_N,
-		N/*c row*/, M/*c column*/, K, &alpha,
-		B/*matrix b*/, CUDA_R_32F/*B is fp32*/, N/*B leading dimension*/,
-		A, CUDA_R_32F/*A is fp32*/, K/*A leading dimension*/,
-		&beta, C, CUDA_R_32F, N/*C leading dimension*/,
-		CUBLAS_COMPUTE_32F, CUBLAS_GEMM_DEFAULT_TENSOR_OP);
-#endif
-	cublasGemmEx(handle, CUBLAS_OP_N, CUBLAS_OP_N,
-		N, M, K, &alpha,
-		B, CUDA_R_32F, N,
-		A, CUDA_R_32F, K,
-		&beta, C, CUDA_R_32F, N,
-		CUBLAS_COMPUTE_32F, CUBLAS_GEMM_DEFAULT_TENSOR_OP);
 }
 
 void print_matrix(const float* matrix, int rows, int cols, const char* name) {
@@ -100,8 +83,8 @@ int main(int argc, char **argv)
 	cudaEventCreate(&start);
 	cudaEventCreate(&stop);
 	cudaEventRecord(start);
-	//runCublasFP32(handle, m, n, k, alpha, dA, dB, beta, dC);
-	cublasSgemm(handle, CUBLAS_OP_N, CUBLAS_OP_N, n, m, k, &alpha, dB, n,dA, k, &beta, dC, n);
+	runCublasFP32(handle, m, n, k, alpha, dA, dB, beta, dC);
+	//cublasSgemm(handle, CUBLAS_OP_N, CUBLAS_OP_N, n, m, k, &alpha, dB, n,dA, k, &beta, dC, n);
 	cudaEventRecord(stop);
 	cudaEventSynchronize(stop);
 //	cudaEventSynchronize(start);
