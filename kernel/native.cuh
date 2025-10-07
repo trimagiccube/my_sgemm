@@ -2,15 +2,15 @@
 
 __global__ void native(int M, int N, int K, float alpha, float *A, float *B, float beta, float *C)
 {
-	const long x = blockIdx.x * blockDim.x + threadIdx.x;
-	const long y = blockIdx.y * blockDim.y + threadIdx.y;
+	const long cRow = blockIdx.x * blockDim.x + threadIdx.x;
+	const long cColumn = blockIdx.y * blockDim.y + threadIdx.y;
 
-	if (x < M && y < N) {
+	if (cRow < M && cColumn < N) {
 		float tmp = 0.0f;
 		for (long i = 0; i < K; i++)
-			tmp += A[x * K + i] * B[i * N  + y];
+			tmp += A[cRow * K + i] * B[i * N  + cColumn];
 
-		tmp = alpha * tmp + beta * C[x * N + y];
-		C[x * N + y] = tmp;
+		tmp = alpha * tmp + beta * C[cRow * N + cColumn];
+		C[cRow * N + cColumn] = tmp;
 	}
 }
