@@ -1,0 +1,15 @@
+cmake_minimum_required(VERSION 3.19)
+project(MY_SGEMM_PRATICE LANGUAGES CXX CUDA)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+find_package(CUDA REQUIRED)
+set(CMAKE_CXX_STANDARD 20)
+set(CUDA_COMPUTE_CAPABILITY 89)
+
+include_directories(${CUDA_INCLUDE_DIRS})
+
+message("CUDA_LIBRARIES :${CUDA_LIBRARIES}")
+message("CUDA_CUBLAS_LIBRARIES :${CUDA_CUBLAS_LIBRARIES}")
+add_executable(sgemm sgemm_cublas.cu)
+target_link_libraries(sgemm ${CUDA_LIBRARIES} ${CUDA_CUBLAS_LIBRARIES})
+set_target_properties(sgemm PROPERTIES CUDA_ARCHITECTURES ${CUDA_COMPUTE_CAPABILITY})
