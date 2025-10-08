@@ -29,6 +29,20 @@ void print_matrix(const float* matrix, int rows, int cols, const char* name) {
 	std::cout << "..." << std::endl;
 }
 
+bool verify_matrix(float *matRef, float *matOut, int N) {
+  double diff = 0.0;
+  int i;
+  for (i = 0; i < N; i++) {
+    diff = std::fabs(matRef[i] - matOut[i]);
+    if (diff > 0.01) {
+      printf("Divergence! Should %5.2f, Is %5.2f (Diff %5.2f) at %d\n",
+             matRef[i], matOut[i], diff, i);
+      return false;
+    }
+  }
+  return true;
+}
+
 long  cal_total_flops(long m, long n, long k)
 {
 	/*c = alpha * (a * b) + beta * c*/
@@ -65,14 +79,17 @@ int main(int argc, char **argv)
 	A = (float *)malloc(sizeof(float) * m * k);
 	B = (float *)malloc(sizeof(float) * k * n);
 	C = (float *)malloc(sizeof(float) * m * n);
+	C_ref = (float *)malloc(sizeof(float) * m * n);
 
 	cudaMalloc((void **)&dA, sizeof(float) * m * k);
 	cudaMalloc((void **)&dB, sizeof(float) * k * n);
 	cudaMalloc((void **)&dC, sizeof(float) * m * n);
+	cudaMalloc((void **)&dC_ref, sizeof(float) * m * n);
 
 	randomize_matrix(A, m * k);
 	randomize_matrix(B, k * n);
 	randomize_matrix(C, m * n);
+	randomize_matrix(C_ref, m * n);
 
 #if 0
 	print_matrix(A, m, k, "matrx A");
@@ -82,12 +99,14 @@ int main(int argc, char **argv)
 	cudaMemcpy(dA, A, sizeof(float) * m * k, cudaMemcpyHostToDevice);
 	cudaMemcpy(dB, B, sizeof(float) * k * n, cudaMemcpyHostToDevice);
 	cudaMemcpy(dC, C, sizeof(float) * m * n, cudaMemcpyHostToDevice);
+	cudaMemcpy(dC_ref, C_ref, sizeof(float) * m * n, cudaMemcpyHostToDevice);
 	if (cublasCreate(&handle)) {
 		std::cout << "create cublas handle error" << std::endl;
 		exit(EXIT_FAILURE);
 	}
 	/*for warmup*/
-	cublasSgemm(handle, CUBLAS_OP_N, CUBLAS_OP_N, n, m, k, &alpha, dB, n,dA, k, &beta, dC, n);
+	cublasSgemm(handle, CUBLAS_OP_N, CUBLAS_OP_N, n, m, k, &alpha, dB, n,dA, k, &beta, dC_ref, n);
+	cudaMemcpy(C_ref, dC_ref, sizeof(float) * m * n, cudaMemcpyDeviceToHost);
 	cudaEventCreate(&start);
 	cudaEventCreate(&stop);
 	cudaEventRecord(start);
@@ -116,6 +135,9 @@ int main(int argc, char **argv)
 	cudaMemcpy(C, dC, sizeof(float) * m * n, cudaMemcpyDeviceToHost);
 	//print_matrix(C, m, n, "result matrx C");
 
+	if(!verify_matrix(C_ref, C, m * n)) {
+		std::cout << "run failed" << std::endl;
+	}
 
 	free(A);
 	free(B);

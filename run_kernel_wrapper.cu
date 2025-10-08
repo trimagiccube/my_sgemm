@@ -28,6 +28,30 @@ void run_native(int M, int N, int K, float alpha, float *A, float *B, float beta
 	native<<<gridDim, blockDim>>>(M, N, K, alpha, A, B, beta, C);
 }
 
+void run_shared_memory_1(int M, int N, int K, float alpha, float *A, float *B, float beta, float *C)
+{
+	dim3 gridDim(CEIL_DIV(M, 32), CEIL_DIV(N, 32));
+	dim3 blockDim(32 , 32);
+#if 0
+	cudaFuncSetAttribute(shared_memory<32>,
+			cudaFuncAttributePreferredSharedMemoryCarveout,
+			cudaSharedmemCarveoutMaxShared);
+#endif
+	shared_memory_1<32><<<gridDim, blockDim>>>(M, N, K, alpha, A, B, beta, C);
+}
+
+void run_shared_memory_2(int M, int N, int K, float alpha, float *A, float *B, float beta, float *C)
+{
+	dim3 gridDim(CEIL_DIV(M, 32), CEIL_DIV(N, 32));
+	dim3 blockDim(32 * 32);
+#if 0
+	cudaFuncSetAttribute(shared_memory<32>,
+			cudaFuncAttributePreferredSharedMemoryCarveout,
+			cudaSharedmemCarveoutMaxShared);
+#endif
+	shared_memory_2<32><<<gridDim, blockDim>>>(M, N, K, alpha, A, B, beta, C);
+}
+
 void run_native_global_coalesce(int M, int N, int K, float alpha, float *A, float *B, float beta, float *C)
 {
 	dim3 gridDim(CEIL_DIV(M, 32), CEIL_DIV(N, 32));
@@ -46,6 +70,12 @@ void run_kernel(int kernel_num, cublasHandle_t handle, int M, int N, int K, floa
 			break;
 		case 2:
 			run_native_global_coalesce(M, N, K, alpha, A, B, beta, C);
+			break;
+		case 3:
+			run_shared_memory_1(M, N, K, alpha, A, B, beta, C);
+			break;
+		case 4:
+			run_shared_memory_2(M, N, K, alpha, A, B, beta, C);
 			break;
 
 		default:
