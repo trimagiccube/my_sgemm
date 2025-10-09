@@ -1,1 +1,4 @@
 it is import to warmup cuda kernel for perfermance test
+
+for produce profile
+make profile KERNEL=1
