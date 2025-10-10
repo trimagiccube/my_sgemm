@@ -52,6 +52,17 @@ void run_shared_memory_2(int M, int N, int K, float alpha, float *A, float *B, f
 	shared_memory_2<32><<<gridDim, blockDim>>>(M, N, K, alpha, A, B, beta, C);
 }
 
+void run_blocktile_1d_thread(int M, int N, int K, float alpha, float *A, float *B, float beta, float *C)
+{
+	const uint BM = 64;
+	const uint BN = 64;
+	const uint BK = 8;
+	const uint TM = 8;
+	dim3 gridDim(CEIL_DIV(N, BN), CEIL_DIV(M, BM));
+	dim3 blockDim((BM * BN) / TM);
+	blocktile_1d_thread<BM, BN, BK, TM><<<gridDim, blockDim>>>(M, N, K, alpha, A, B, beta, C);
+}
+
 void run_native_global_coalesce(int M, int N, int K, float alpha, float *A, float *B, float beta, float *C)
 {
 	dim3 gridDim(CEIL_DIV(M, 32), CEIL_DIV(N, 32));
@@ -76,6 +87,9 @@ void run_kernel(int kernel_num, cublasHandle_t handle, int M, int N, int K, floa
 			break;
 		case 4:
 			run_shared_memory_2(M, N, K, alpha, A, B, beta, C);
+			break;
+		case 5:
+			run_blocktile_1d_thread(M, N, K, alpha, A, B, beta, C);
 			break;
 
 		default:
