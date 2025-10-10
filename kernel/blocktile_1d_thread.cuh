@@ -115,8 +115,8 @@ __global__ void blocktile_1d_thread(int M, int N, int K, float alpha, float *A, 
 	const uint innerRowA = threadIdx.x / BK;
 	const uint innerColA = threadIdx.x % BK;
 	/*used to locate the coordinates (this thread use)in shared memory of B matrix*/
-	const uint innerRowB = threadIdx.x % BN;
-	const uint innerColB = threadIdx.x / BN;
+	const uint innerRowB = threadIdx.x / BN;
+	const uint innerColB = threadIdx.x % BN;
 	float threadresult[TM] = {0.0f};
 	float tmpB = 0.0f;
 
